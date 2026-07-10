@@ -23,9 +23,14 @@ const messaging = firebase.messaging();
 // Chamado pelo navegador/sistema quando chega um push do FCM e o app está
 // fechado ou em background — é isso que faz a notificação aparecer na barra
 // do Android mesmo sem o app aberto.
+// Usamos payload.data (não payload.notification) de propósito: quando o
+// payload tem bloco "notification", o próprio SDK do Firebase exibe uma
+// notificação automática ALÉM desta aqui, causando duplicata. Com "data",
+// só este código controla a exibição.
 messaging.onBackgroundMessage((payload) => {
-    const titulo = (payload.notification && payload.notification.title) || 'Vinisa';
-    const corpo = (payload.notification && payload.notification.body) || '';
+    const dados = payload.data || {};
+    const titulo = dados.title || 'Vinisa';
+    const corpo = dados.body || '';
 
     self.registration.showNotification(titulo, {
         body: corpo,
