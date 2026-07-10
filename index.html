@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Vinisa">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#c9def0">
+    <meta name="theme-color" content="#ffffff">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -13672,20 +13672,9 @@
 
             try { emitirSom('sucesso'); } catch(e) {}
 
-            // Só avisa no chat compartilhado na primeira vez que abre nesta
-            // sessão (abertura automática ao entrar no app) — reabrir manual-
-            // mente via "reativar" não deve mandar o aviso de novo pro chat.
-            if (avisarNoChat) {
-                try {
-                    syncRef.child('chat').push({
-                        id: Date.now().toString() + "_" + Math.random().toString(36).substr(2, 5),
-                        de: "Sistema",
-                        texto: `💞 Hoje é mêsversário! ${numeroMes === 1 ? 'Primeiro mês' : numeroMes + ' meses'} de namoro completos. Feliz mêsversário, vocês dois! 🎉`,
-                        tipo: 'sistema',
-                        timestamp: Date.now()
-                    });
-                } catch(e) {}
-            }
+            // Aviso no chat compartilhado desativado a pedido do usuário —
+            // o overlay de celebração continua aparecendo normalmente,
+            // só não posta mais a mensagem automática no chat.
         }
 
         function fecharMesversario() {
