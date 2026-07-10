@@ -11742,6 +11742,15 @@
                 </div>
             </div>
 
+            <!-- STATUS DE NOTIFICAÇÕES PUSH -->
+            <div class="card" id="card-status-push">
+                <h3>🔔 Notificações Push</h3>
+                <p class="card-desc" id="texto-status-push">Verificando status...</p>
+                <button class="btn-romantico btn-destaque" id="btn-ativar-push" onclick="ativarPushManualmente()" style="display:none;">
+                    🔔 Ativar Notificações
+                </button>
+            </div>
+
             <!-- JÁ CHEGUEI (CHECK-IN MANUAL) -->
             <div class="card">
                 <h3>📍 Já Cheguei</h3>
@@ -13225,6 +13234,53 @@
         const VAPID_KEY_PUBLICA = "BIOCV4IsrknrJxYvKgowvSuXRLndKqO6AfCN5z6hieMnKo8MXdE19cr1_Vmgxhibe09B7um0Pkv_HuecbKe1bx8";
         const PUSH_BRIDGE_URL = "https://script.google.com/macros/s/AKfycbwvTW8PZTfOUhwRoSTa21eGysi4xtUnJcdi9cMSvK005DyCOieyn1V6r9LsbdxXKUiV1g/exec";
 
+        // Mostra na tela o status real da permissão de notificação, já que o
+        // pedido "automático" no primeiro clique pode falhar silenciosamente
+        // (ex: permissão já negada antes, navegador sem suporte, PWA instalado
+        // sem esse fluxo). Dá pro usuário ver e resolver com um botão visível.
+        function atualizarStatusPush() {
+            const textoEl = document.getElementById('texto-status-push');
+            const btnEl = document.getElementById('btn-ativar-push');
+            if (!textoEl || !btnEl) return;
+
+            if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+                textoEl.textContent = '❌ Este navegador não suporta notificações push.';
+                btnEl.style.display = 'none';
+                return;
+            }
+
+            if (Notification.permission === 'granted') {
+                textoEl.textContent = '✅ Notificações ativadas neste aparelho.';
+                btnEl.style.display = 'none';
+            } else if (Notification.permission === 'denied') {
+                textoEl.textContent = '🚫 Notificações BLOQUEADAS. Vá nas configurações do navegador (ícone de cadeado/informações ao lado do endereço do site) e permita notificações manualmente, depois recarregue a página.';
+                btnEl.style.display = 'none';
+            } else {
+                textoEl.textContent = '⚠️ Notificações ainda não ativadas neste aparelho. Toque no botão abaixo.';
+                btnEl.style.display = 'inline-block';
+            }
+        }
+
+        async function ativarPushManualmente() {
+            try {
+                if (!('Notification' in window)) return;
+                const permissao = await Notification.requestPermission();
+                if (permissao === 'granted') {
+                    mostrarNotificacao('Notificações ativadas! 🔔', '✅');
+                    await tentarRegistrarPushParaPerfilAtual();
+                } else {
+                    mostrarNotificacao('Notificação não foi permitida. Você pode ativar depois nas configurações do navegador.', '⚠️');
+                }
+            } catch (erro) {
+                console.warn('Erro ao pedir permissão de push:', erro);
+            } finally {
+                atualizarStatusPush();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', atualizarStatusPush);
+        setTimeout(atualizarStatusPush, 1000);
+
         // Dispara o push de verdade pro OUTRO perfil (o que não está mandando a
         // mensagem agora). Busca todos os tokens salvos dele no Realtime Database
         // e chama a ponte (Google Apps Script) que autentica com o FCM HTTP v1.
@@ -13270,9 +13326,14 @@
                         token: token,
                         atualizadoEm: Date.now()
                     });
+                    console.log('Push: token registrado com sucesso para', nome);
+                } else {
+                    console.warn('Push: getToken não retornou um token válido.');
+                    try { mostrarNotificacao('Não consegui gerar o token de notificação. Tente recarregar a página.', '⚠️'); } catch(e) {}
                 }
             } catch (erro) {
                 console.warn('Não foi possível registrar token de push:', erro);
+                try { mostrarNotificacao('Erro ao ativar notificações: ' + (erro.message || erro), '⚠️'); } catch(e) {}
             }
         }
 
