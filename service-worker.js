@@ -1,15 +1,39 @@
 // ============================================================================
 // SERVICE WORKER - Vinisa
 // Cuida do cache básico offline (pro app abrir rápido / funcionar com net
-// ruim) e de exibir notificações locais do chat (via showNotification,
-// chamado pelo próprio index.html quando o app está aberto ou minimizado há
-// pouco tempo) e de reagir ao toque nelas, abrindo o app de volta.
-//
-// OBS: push notification "de verdade" — que acorda o celular com o app
-// TOTALMENTE fechado — precisa de Firebase Cloud Messaging + Cloud Functions
-// no backend, que por sua vez exige o plano pago Blaze do Firebase. Isso não
-// está ativo aqui por enquanto; pode ser adicionado depois se for preciso.
+// ruim) e agora TAMBÉM do push notification real via Firebase Cloud
+// Messaging, que funciona mesmo com o app totalmente fechado.
 // ============================================================================
+
+importScripts('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js');
+importScripts('https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js');
+
+firebase.initializeApp({
+    apiKey: "AIzaSyB0zJCTSVv4mOM0UdOPXXo3fb9jR29Ezi0",
+    authDomain: "viniussa-5ac61.firebaseapp.com",
+    databaseURL: "https://viniussa-5ac61-default-rtdb.firebaseio.com",
+    projectId: "viniussa-5ac61",
+    storageBucket: "viniussa-5ac61.firebasestorage.app",
+    messagingSenderId: "427736345845",
+    appId: "1:427736345845:web:1d803ce4aac194167b69bc"
+});
+
+const messaging = firebase.messaging();
+
+// Chamado pelo navegador/sistema quando chega um push do FCM e o app está
+// fechado ou em background — é isso que faz a notificação aparecer na barra
+// do Android mesmo sem o app aberto.
+messaging.onBackgroundMessage((payload) => {
+    const titulo = (payload.notification && payload.notification.title) || 'Vinisa';
+    const corpo = (payload.notification && payload.notification.body) || '';
+
+    self.registration.showNotification(titulo, {
+        body: corpo,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        vibrate: [200, 100, 200]
+    });
+});
 
 const CACHE_NOME = 'vinisa-cache-v1';
 const ARQUIVOS_CACHE = [
