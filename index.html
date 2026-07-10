@@ -13222,7 +13222,29 @@
         // do sistema do Android quando o outro perfil manda mensagem —
         // funciona mesmo com o app fechado.
         // ====================================================================
-        const VAPID_KEY_PUBLICA = "COLE_AQUI_SUA_VAPID_KEY_PUBLICA";
+        const VAPID_KEY_PUBLICA = "BIOCV4IsrknrJxYvKgowvSuXRLndKqO6AfCN5z6hieMnKo8MXdE19cr1_Vmgxhibe09B7um0Pkv_HuecbKe1bx8";
+        const PUSH_BRIDGE_URL = "https://script.google.com/macros/s/AKfycbwvTW8PZTfOUhwRoSTa21eGysi4xtUnJcdi9cMSvK005DyCOieyn1V6r9LsbdxXKUiV1g/exec";
+
+        // Dispara o push de verdade pro OUTRO perfil (o que não está mandando a
+        // mensagem agora). Busca todos os tokens salvos dele no Realtime Database
+        // e chama a ponte (Google Apps Script) que autentica com o FCM HTTP v1.
+        async function dispararPushParaOutroPerfil(nomeDestino, tituloNotif, corpoNotif) {
+            try {
+                if (!db || !nomeDestino) return;
+                const snap = await db.ref('vinisa_push_tokens/' + nomeDestino).once('value');
+                if (!snap.exists()) return;
+
+                const tokens = Object.keys(snap.val());
+                tokens.forEach(token => {
+                    fetch(PUSH_BRIDGE_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ token: token, title: tituloNotif, message: corpoNotif })
+                    }).catch(erro => console.warn('Push: falha ao chamar a ponte de envio.', erro));
+                });
+            } catch (erro) {
+                console.warn('Push: falha ao buscar tokens do destinatário.', erro);
+            }
+        }
 
         async function registrarTokenPushParaUsuario(nome) {
             try {
@@ -14740,6 +14762,15 @@
             syncRef.child('alertaSaudade').set(saudadeObj);
             fecharModalSaudade();
             mostrarNotificacao("Sinal de saudade enviado com sucesso! 💌", "🚀");
+
+            // Push real pro parceiro, mesmo com o app fechado.
+            const nomeOutroPerfilSaudade = meuUtilizador === 'Vini' ? 'Isy' : 'Vini';
+            dispararPushParaOutroPerfil(
+                nomeOutroPerfilSaudade,
+                `${emojiQuem} Saudade de você!`,
+                texto
+            );
+
             desbloquearConquistaLocal('c06');
             if (new Date().getHours() < 8 && typeof desbloquearConquistaLocal === 'function') {
                 desbloquearConquistaLocal('c110');
@@ -14825,6 +14856,14 @@
             // histórico de localização, é um aviso pontual "cheguei agora".
             syncRef.child('chegadas').child(meuUtilizador).set(chegadaObj);
             mostrarNotificacao(`Avisamos que você chegou ${textoLocal}!`, emojiLocal);
+
+            // Push real pro parceiro, mesmo com o app fechado.
+            const nomeOutroPerfilChegada = meuUtilizador === 'Vini' ? 'Isy' : 'Vini';
+            dispararPushParaOutroPerfil(
+                nomeOutroPerfilChegada,
+                `${emojiQuem} Chegou ${textoLocal}`,
+                `${emojiLocal} ${meuUtilizador} chegou ${textoLocal}!`
+            );
         }
 
         function renderizarChegadas(dados) {
@@ -16186,6 +16225,17 @@ function renderizarTarefas() {
                 console.error("Falha ao enviar mensagem para a nuvem:", erro);
                 avisarErroChat("Mensagem NÃO chegou na nuvem (erro de conexão/permissão). Ela só existe neste celular.");
             });
+
+            // Notifica o OUTRO perfil com push real, mesmo se o app dele
+            // estiver fechado. Remove tags HTML do texto pra mostrar limpo
+            // na barra de notificações do Android.
+            const nomeOutroPerfil = meuUtilizador === 'Vini' ? 'Isy' : 'Vini';
+            const textoLimpoParaNotif = htmlStr.replace(/<[^>]*>/g, '').trim();
+            dispararPushParaOutroPerfil(
+                nomeOutroPerfil,
+                meuUtilizador,
+                textoLimpoParaNotif || 'Nova mensagem 💌'
+            );
 
             clearTimeout(typingTimer);
             syncRef.child('digitando').set({ quem: "", time: Date.now() });
