@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Vinisa">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#c9def0">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -13115,6 +13115,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
     
     <script>
         // ==========================================
@@ -13214,21 +13215,52 @@
         }
 
         // ====================================================================
-        // PUSH NOTIFICATIONS (Firebase Cloud Messaging) — DESATIVADO POR ORA
-        // Essa parte (notificação real na barra do sistema com o app
-        // TOTALMENTE fechado) precisa de uma Cloud Function no backend, que
-        // por sua vez exige o plano pago Blaze do Firebase. Como não estamos
-        // usando isso agora, a função abaixo não faz nada — o app continua
-        // funcionando 100% normalmente com as notificações locais (que já
-        // funcionam com o app aberto ou minimizado há pouco tempo, ver
-        // função notificarMensagemChat mais abaixo).
-        //
-        // Se um dia quiser ativar push de verdade com app fechado, é só
-        // reativar o registro de token aqui e publicar a Cloud Function
-        // correspondente no backend.
+        // PUSH NOTIFICATIONS REAIS (Firebase Cloud Messaging)
+        // Registra o "token" deste celular/instalação no Realtime Database,
+        // associado ao perfil (Vini/Isy) escolhido. Uma Cloud Function no
+        // backend usa esse token pra mandar notificação de verdade pra barra
+        // do sistema do Android quando o outro perfil manda mensagem —
+        // funciona mesmo com o app fechado.
         // ====================================================================
+        const VAPID_KEY_PUBLICA = "COLE_AQUI_SUA_VAPID_KEY_PUBLICA";
+
+        async function registrarTokenPushParaUsuario(nome) {
+            try {
+                if (!('serviceWorker' in navigator) || !firebase.messaging) return;
+                if (!nome) return;
+                if (Notification.permission !== 'granted') return;
+                if (VAPID_KEY_PUBLICA.startsWith('COLE_AQUI')) {
+                    console.warn('Push: defina a VAPID_KEY_PUBLICA antes de usar notificações reais.');
+                    return;
+                }
+
+                const registration = await navigator.serviceWorker.ready;
+                const messaging = firebase.messaging();
+                const token = await messaging.getToken({
+                    vapidKey: VAPID_KEY_PUBLICA,
+                    serviceWorkerRegistration: registration
+                });
+
+                if (token && db) {
+                    // Salva o token na sub-árvore do perfil atual. Cada perfil
+                    // pode ter mais de um celular/instalação registrado.
+                    await db.ref('vinisa_push_tokens/' + nome + '/' + token).set({
+                        token: token,
+                        atualizadoEm: Date.now()
+                    });
+                }
+            } catch (erro) {
+                console.warn('Não foi possível registrar token de push:', erro);
+            }
+        }
+
+        // Sempre que o usuário troca de perfil (ou entra pela primeira vez),
+        // re-registra o token associado a esse nome — assim a Cloud Function
+        // sabe pra qual token mandar quando o OUTRO perfil escreve no chat.
         function tentarRegistrarPushParaPerfilAtual() {
-            // Intencionalmente vazio por enquanto.
+            if (typeof meuUtilizador !== 'undefined' && meuUtilizador) {
+                registrarTokenPushParaUsuario(meuUtilizador);
+            }
         }
 
         let listenerAtivo = false;
