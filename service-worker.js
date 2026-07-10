@@ -1,9 +1,14 @@
 // ============================================================================
 // SERVICE WORKER - Vinisa
-// Cuida de duas coisas:
-//   1) Cache básico offline (pro app abrir rápido / funcionar com net ruim)
-//   2) Push notifications reais (aparecem na barra do sistema do Android
-//      mesmo com o app fechado), via Firebase Cloud Messaging
+// Cuida do cache básico offline (pro app abrir rápido / funcionar com net
+// ruim) e de exibir notificações locais do chat (via showNotification,
+// chamado pelo próprio index.html quando o app está aberto ou minimizado há
+// pouco tempo) e de reagir ao toque nelas, abrindo o app de volta.
+//
+// OBS: push notification "de verdade" — que acorda o celular com o app
+// TOTALMENTE fechado — precisa de Firebase Cloud Messaging + Cloud Functions
+// no backend, que por sua vez exige o plano pago Blaze do Firebase. Isso não
+// está ativo aqui por enquanto; pode ser adicionado depois se for preciso.
 // ============================================================================
 
 const CACHE_NOME = 'vinisa-cache-v1';
@@ -35,41 +40,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
         fetch(event.request).catch(() => caches.match(event.request))
     );
-});
-
-// ----------------------------------------------------------------------------
-// FIREBASE CLOUD MESSAGING (push real, aparece na barra de notificação do
-// Android mesmo com o app fechado ou o celular bloqueado)
-// ----------------------------------------------------------------------------
-importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
-
-firebase.initializeApp({
-    apiKey: "AIzaSyB0zJCTSVv4mOM0UdOPXXo3fb9jR29Ezi0",
-    authDomain: "viniussa-5ac61.firebaseapp.com",
-    databaseURL: "https://viniussa-5ac61-default-rtdb.firebaseio.com",
-    projectId: "viniussa-5ac61",
-    storageBucket: "viniussa-5ac61.firebasestorage.app",
-    messagingSenderId: "427736345845",
-    appId: "1:427736345845:web:1d803ce4aac194167b69bc"
-});
-
-const messaging = firebase.messaging();
-
-// Chega um push com o app fechado/em background -> mostra na barra do sistema.
-messaging.onBackgroundMessage((payload) => {
-    const titulo = (payload.notification && payload.notification.title) || 'Vinisa';
-    const corpo = (payload.notification && payload.notification.body) || 'Nova mensagem';
-
-    self.registration.showNotification(titulo, {
-        body: corpo,
-        icon: 'icon-192.png',
-        badge: 'icon-192.png',
-        tag: 'chat-vinisa',
-        renotify: true,
-        vibrate: [120, 60, 120],
-        data: { url: '/index.html' }
-    });
 });
 
 // Toca na notificação -> abre (ou foca) o app.
