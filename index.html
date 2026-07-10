@@ -16128,12 +16128,10 @@ function renderizarTarefas() {
             if (data.id && !document.getElementById(data.id)) {
                 adicionarMensagemAoChat(data.de, data.texto, data.id, !chatPrimeiraCargaCompleta);
 
-                // Notificação: só dispara para mensagens que chegam em tempo
-                // real (não durante a carga do histórico) e que não são
-                // minhas, senão eu recebo notificação da própria mensagem.
-                if (chatPrimeiraCargaCompleta && data.de !== meuUtilizador) {
-                    notificarMensagemChat(data.de, data.texto);
-                }
+                // Notificação real agora vem via push FCM (dispararPushParaOutroPerfil,
+                // chamado em enviarMensagemChatCore), que funciona tanto com o app
+                // aberto quanto fechado. A notificação local daqui foi removida pra
+                // não duplicar a mesma notificação quando o app está em background.
             }
         }
 
